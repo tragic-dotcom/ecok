@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#070707" />
+  <meta name="description" content="EcoBlack · red inteligente de módulos de carga." />
+  <title>EcoBlack · Energy Network</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='icons/icon.svg') }}" />
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='17.0') }}" />
+</head>
+<body>
+  <canvas id="networkCanvas" aria-hidden="true"></canvas>
+  <div id="storm" class="storm" aria-hidden="true"></div>
+
+  <div id="splash" class="screen splash-screen">
+    <canvas id="particleCanvas"></canvas>
+    <div class="splash-grid"></div>
+    <div class="splash-scan"></div>
+    <div class="splash-energy-ring ring-a"></div>
+    <div class="splash-energy-ring ring-b"></div>
+    <div id="inwardBolts" class="inward-bolts" aria-hidden="true"></div>
+    <div class="splash-core">
+      <div class="core-aura"></div>
+      <div class="core-bolt bolt-one">⚡</div>
+      <div class="core-bolt bolt-two">⚡</div>
+      <div class="core-bolt bolt-three">⚡</div>
+      <div class="core-logo">⚡</div>
+    </div>
+    <div class="brand"><span>Eco</span>Black</div>
+    <div class="splash-status"><span class="status-dot"></span><span id="splashStatus">INICIALIZANDO RED</span></div>
+    <div class="splash-progress"><div id="splashProgress"></div></div>
+    <div class="splash-tag">SUPERCHARGE YOUR DAY</div>
+  </div>
+
+  <div id="authScreen" class="screen hidden">
+    <div class="auth-lightning-bg"></div>
+    <div class="auth-card glass">
+      <div class="auth-brand"><b>⚡ EcoBlack</b><span>ENERGY NETWORK</span></div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-auth-view="login">Iniciar sesión</button>
+        <button class="auth-tab" data-auth-view="register">Crear cuenta</button>
+      </div>
+      <div id="loginPanel" class="auth-panel">
+        <p class="eyebrow">ENTRAR</p>
+        <h1>Bienvenido de vuelta.</h1>
+        <p class="muted">Conéctate a la red EcoBlack.</p>
+        <label>Usuario<input id="loginUsername" autocomplete="username" placeholder="Tu usuario" /></label>
+        <label>Contraseña<input id="loginPassword" type="password" autocomplete="current-password" placeholder="Tu contraseña" /></label>
+        <button id="loginBtn" class="primary glass-button full">Entrar ⚡</button>
+        <p class="auth-hint">Admin inicial: <b>tragic</b> / <b>69</b></p>
+      </div>
+      <div id="registerPanel" class="auth-panel hidden">
+        <p class="eyebrow">NUEVA CUENTA</p>
+        <h1>Crear tu perfil.</h1>
+        <p class="muted">EcoBlack se adapta a dónde piensas usarlo.</p>
+        <label>Usuario<input id="registerUsername" autocomplete="username" placeholder="Ej. alex" /></label>
+        <label>Contraseña<input id="registerPassword" type="password" autocomplete="new-password" placeholder="Mínimo 4 caracteres" /></label>
+        <label>¿Dónde usarás EcoBlack?
+          <select id="usageSelect">
+            <option value="">Selecciona...</option><option>Casa</option><option>Trabajo</option><option>Escuela</option><option>Viajes</option><option>Centro comercial</option><option>Uso público</option>
+          </select>
+        </label>
+        <button id="registerBtn" class="primary glass-button full">Crear cuenta ⚡</button>
+      </div>
+      <div id="authError" class="auth-error hidden"></div>
+    </div>
+  </div>
+
+  <div id="app" class="app hidden">
+    <aside class="sidebar glass">
+      <div class="logo"><span class="logo-bolt">⚡</span><span>EcoBlack</span></div>
+      <button class="nav active glass-button" data-view="home">⌂ <span>Inicio</span></button>
+      <button class="nav glass-button" data-view="services">⚡ <span>Servicios</span></button>
+      <button class="nav glass-button" data-view="charge">🔋 <span>Cargar</span></button>
+      <button class="nav glass-button" data-view="profile">◉ <span>Perfil</span></button>
+      <button id="adminNav" class="nav glass-button hidden" data-view="admin">🛠 <span>Admin</span></button>
+      <div class="side-footer">EcoBlack V16<br><span>Flask · MongoDB Atlas · SQLite · Bmax</span></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><p class="eyebrow">RED ECOBLACK</p><h1 id="pageTitle">Encuentra energía cerca de ti</h1></div>
+        <div class="top-actions"><span id="balanceBadge" class="balance-badge">$0.00</span><span id="connectionPill" class="status-pill">ONLINE</span><span id="planBadge" class="plan-badge no-plan-badge">SIN PLAN</span><span id="userBadge" class="user-badge">Usuario</span><button id="locateBtn" class="icon-btn glass-button" title="Usar mi ubicación">⌖</button><button id="logoutBtn" class="icon-btn glass-button" title="Cerrar sesión">⇥</button></div>
+      </header>
+
+      <div id="activeSessionDock" class="active-session-dock hidden" role="status" aria-live="polite">
+        <div class="active-battery-ring" id="activeBatteryRing" style="--battery-level:35%"><span id="activeBatteryPercent">35%</span></div>
+        <div class="active-session-copy">
+          <div class="active-session-label"><span class="session-live-dot"></span> MÓDULO EN USO · OCUPADO</div>
+          <b id="activeSessionName">EcoBlack</b>
+          <span id="activeSessionMeta">Tu dispositivo está conectado.</span>
+        </div>
+        <div class="active-session-time" id="activeSessionTime"><small>TIEMPO RESTANTE</small><strong id="activeSessionCountdown">00:00</strong></div>
+        <button id="activeSessionDisconnect" class="glass-button active-session-disconnect">Desconectar</button>
+      </div>
+
+      <section id="view-home" class="view active-view">
+        <div class="hero-grid">
+          <div class="glass hero-copy">
+            <div class="hero-kicker">⚡ CARGA INTELIGENTE</div>
+            <h2>Tu energía,<br><span>donde la necesites.</span></h2>
+            <p>Encuentra módulos EcoBlack, revisa disponibilidad y conecta tu dispositivo con un estimado de tiempo realista.</p>
+            <div class="hero-actions">
+              <button class="primary glass-button" data-view="charge">Cargar ahora</button>
+              <button id="toggleMapBtn" class="secondary glass-button">Mostrar mapa</button>
+              <button class="secondary glass-button" data-view="services">Comparar paquetes</button>
+            </div>
+          </div>
+          <div class="glass nearest-card">
+            <div class="card-head"><span>⚡ MÁS CERCANO</span><span class="pulse-dot"></span></div>
+            <div id="nearestName" class="nearest-name">Buscando módulo...</div>
+            <div id="nearestMeta" class="muted">Cargando red...</div>
+            <div class="stats-row"><div><b id="nearestDistance">—</b><span>km aprox.</span></div><div><b id="nearestPower">—</b><span>potencia</span></div></div>
+            <button id="nearestBtn" class="outline-full glass-button">Ver módulo</button>
+          </div>
+        </div>
+
+
+        <div class="glass home-plan-card" aria-live="polite">
+          <div class="home-plan-emblem">♛</div>
+          <div class="home-plan-copy"><small id="homePlanTag">SIN PLAN · ACCESO BLOQUEADO</small><h3 id="homePlanName">Sin plan</h3><p id="homePlanDescription">Compra un plan para poder conectar un módulo.</p></div>
+          <button id="homePlanAction" class="secondary glass-button" data-view="services">Comprar un plan</button>
+        </div>
+
+        <div class="section-title"><div><h3>Radar mundial</h3><p>Vista general: estados y conteos por ciudad. Al acercarte aparecen los módulos en sus coordenadas exactas.</p></div><span id="mapStatus" class="status-pill">0 módulos</span></div>
+        <div class="map-controls glass hidden">
+          <div><b>EcoBlack Maps</b><span>Estados → ciudades con conteo → módulos a ubicación exacta. Los pines permanecen anclados a sus coordenadas.</span></div>
+          <button id="toggle3dBtn" class="glass-button map-control-btn" aria-pressed="false">Activar edificios 3D</button>
+          <button id="mapMyLocationBtn" class="glass-button map-control-btn">Mi ubicación</button>
+          <button id="resetMapBtn" class="glass-button map-control-btn">Centrar mapa</button>
+        </div>
+        <div class="glass map-card">
+          <div id="mapPlaceholder" class="map-placeholder">
+            <div class="radar-ui"><span class="radar-sweep"></span><div class="radar-core">⚡</div></div>
+            <b>Radar EcoBlack</b><span>Renderizado bajo demanda para evitar pantallas negras.</span>
+            <button id="showMapBtn" class="primary glass-button">Mostrar mapa</button>
+          </div>
+          <div id="map" class="hidden"></div>
+          <div id="mapFallback" class="map-fallback hidden"><div><b>Modo radar local</b><span>No se pudieron cargar los mosaicos del mapa. La red EcoBlack sigue disponible.</span><button id="retryMapBtn" class="secondary glass-button">Reintentar mapa</button></div></div>
+        </div>
+      </section>
+
+      <section id="view-services" class="view"><div class="section-title"><div><h3>Planes EcoBlack</h3><p>Compra un plan antes de conectar. Cada plan normal incluye una sesión; Bmax Pro ofrece acceso permanente a módulos Bmax.</p></div></div><div id="serviceGrid" class="service-grid"></div></section>
+
+      <section id="view-charge" class="view">
+        <div class="charge-layout">
+          <div class="glass panel">
+            <div class="panel-title"><span>🔋</span><div><h3>Configurar carga</h3><p>Elige dispositivo y tipo de centro.</p></div></div>
+            <label>Dispositivo<select id="deviceSelect"></select></label>
+            <label>Batería actual <div class="battery-input"><input id="batteryLevel" type="range" min="0" max="100" value="35" /><b id="batteryValue">35%</b></div><small class="field-hint">Se leerá automáticamente cuando el navegador lo permita; también puedes ajustarla manualmente.</small></label>
+            <label>Tipo de centro<select id="connectorSelect"><option>USB-C</option><option>Lightning</option><option>Micro-USB</option><option>Inalámbrico</option></select></label>
+            <label>Paquete<select id="packageSelect"></select></label>
+            <label id="customMinutesWrap" class="hidden">Duración personalizada (minutos)<input id="customMinutes" type="number" min="10" max="120" value="25" /></label>
+            <div class="purchase-summary glass"><div><span>Precio base</span><b id="priceBase">$15.00</b></div><div><span>Descuento</span><b id="priceDiscount">0%</b></div><div><span>Total con descuento</span><strong id="priceFinal">$15.00</strong></div></div>
+            <button id="estimateBtn" class="primary glass-button full">Calcular tiempo</button>
+          </div>
+          <div class="glass estimate-panel">
+            <div class="electric-ring" id="estimateRing"><span id="estimateBatteryPercent">35%</span><i></i></div>
+            <p class="eyebrow">DURACIÓN REAL ESTIMADA DE SESIÓN</p><div id="chargeTime" class="big-number">—</div>
+            <p id="chargeText" class="muted">Selecciona tus datos para calcular un estimado.</p>
+            <div class="meter"><div id="chargeMeter"></div></div>
+            <div class="estimate-row"><span>Inicio</span><b id="startPct">35%</b></div>
+            <div class="estimate-row"><span>Objetivo</span><b>90%</b></div>
+            <div class="estimate-row"><span>Potencia aplicada</span><b id="chargeWatts">—</b></div>
+            <div class="estimate-row"><span id="chargeTargetLabel">Tiempo para 90%</span><b id="chargeTargetTime">—</b></div>
+            <div class="estimate-row"><span>Batería al finalizar</span><b id="chargeEndBattery">—</b></div>
+            <button id="useNearestBtn" class="outline-full glass-button">Conectar al más cercano</button>
+            <button id="saveSessionBtn" class="outline-full glass-button">Guardar sesión</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-profile" class="view">
+        <div class="profile-layout">
+          <div class="glass profile-card">
+            <div class="profile-photo-wrap"><img id="profilePhoto" class="profile-photo hidden" alt="Foto de perfil" /><div id="profilePhotoFallback" class="avatar">EB</div></div>
+            <h3 id="profileName">Usuario EcoBlack</h3><p id="profileUsage" class="muted">Perfil local</p>
+            <label class="photo-picker">Cambiar foto<input id="profilePhotoInput" type="file" accept="image/*" hidden /></label>
+            <label class="display-name-field">Nombre visible<input id="displayNameInput" maxlength="40" placeholder="Cómo quieres que te vean" /></label>
+            <button id="editNameBtn" class="secondary glass-button full">Guardar nombre visible</button>
+            <div class="balance-card"><span>SALDO DISPONIBLE</span><strong id="profileBalance">$0.00</strong><small id="profileDiscount">Sin descuento personal</small></div>
+          </div>
+          <div class="glass panel"><div class="panel-title"><span>📱</span><div><h3>Mis dispositivos</h3><p>Guarda el modelo y sus características para una estimación más ajustada.</p></div></div><div id="deviceList" class="list"></div>
+            <div class="add-device-form"><label>Modelo del celular<input id="newDevice" placeholder="Ej. iPhone 16 Pro" /></label><div class="two-col"><label>Batería (mAh)<input id="newDeviceBattery" type="number" min="1000" max="30000" value="4500" /></label><label>Carga máxima (W)<input id="newDeviceWatts" type="number" min="3" max="300" value="30" /></label></div><label>Conector<select id="newDeviceConnector"><option>USB-C</option><option>Lightning</option><option>Micro-USB</option><option>Inalámbrico</option></select></label><button id="addDeviceBtn" class="primary glass-button full">Guardar dispositivo</button></div>
+          </div>
+        </div>
+        <div class="glass panel history-panel"><div class="panel-title"><span>🕒</span><div><h3>Historial de carga y saldo</h3><p>Sesiones anteriores y movimientos del monedero.</p></div></div><div id="historyList" class="list"></div><div class="subsection-title">Movimientos de saldo</div><div id="transactionList" class="list"></div></div>
+      </section>
+
+      <section id="view-admin" class="view">
+        <div class="section-title"><div><h3>Panel de administrador</h3><p>Cuenta <b>tragic</b> · agrega o quita módulos y controla su disponibilidad.</p></div><span class="status-pill admin-pill">ADMIN · VINO</span></div>
+        <div class="glass panel admin-service-switcher">
+          <div class="panel-title"><span>🎨</span><div><h3>Cambiar servicio / interfaz</h3><p>Tu panel admin inicia en color vino. Elige un tema de servicio para previsualizar su identidad visual; esto no cambia los planes ni permisos de los clientes.</p></div></div>
+          <label for="adminServiceSelect">Servicio visual del administrador
+            <select id="adminServiceSelect">
+              <option value="wine">Administración · Vino (predeterminado)</option>
+              <option value="basic">Básico · Verde</option>
+              <option value="fast">Rápido · Azul</option>
+              <option value="power">Power · Naranja</option>
+              <option value="custom">Personalizado · Turquesa</option>
+              <option value="bmax_pro">Bmax Pro · Violeta VIP</option>
+            </select>
+          </label>
+          <div class="admin-theme-note">La selección se guarda en el perfil administrador y se conserva al volver a iniciar sesión.</div>
+        </div>
+        <div class="admin-grid">
+          <div class="glass panel"><div class="panel-title"><span>➕</span><div><h3>Añadir módulo</h3><p>Agrega ciudad y estado para agrupar correctamente el mapa. Toca el mapa para fijar la ubicación exacta. No guardes el módulo sin un punto seleccionado o coordenadas válidas.</p></div></div>
+            <label>Nombre<input id="moduleName" placeholder="EcoBlack Centro Norte" /></label>
+            <div class="two-col"><label>Ciudad<input id="moduleCity" placeholder="Cancún" /></label><label>Estado<input id="moduleState" placeholder="Quintana Roo" /></label></div>
+            <div class="two-col"><label>Latitud<input id="moduleLat" type="number" step="any" placeholder="21.16" /></label><label>Longitud<input id="moduleLng" type="number" step="any" placeholder="-86.85" /></label></div>
+            <div class="two-col"><label>Tipo de módulo<select id="moduleType"><option value="standard">EcoBlack normal</option><option value="bmax">Bmax · negro / morado</option></select></label><label>Potencia<select id="modulePower"><option>25 W</option><option selected>30 W</option><option>45 W</option><option>65 W</option><option>100 W</option></select></label></div>
+            <label>Estado inicial<select id="moduleStatus"><option value="available">Disponible</option><option value="busy">Ocupado</option></select></label>
+            <p class="bmax-module-form-note">Los módulos Bmax tienen identidad visual negra y violeta y una animación exclusiva cuando se ocupan.</p>
+            <label>Conectores<div id="connectorChecks" class="check-grid"><label><input type="checkbox" value="USB-C" checked> USB-C</label><label><input type="checkbox" value="Lightning"> Lightning</label><label><input type="checkbox" value="Micro-USB"> Micro-USB</label><label><input type="checkbox" value="Inalámbrico"> Inalámbrico</label></div></label>
+            <div class="admin-pick-row"><button id="pickModuleLocationBtn" class="secondary glass-button">Elegir punto en el mapa</button><span id="pickLocationStatus" class="pick-status">Sin punto seleccionado</span></div>
+            <button id="addModuleBtn" class="primary glass-button full">Añadir al mapa ⚡</button>
+          </div>
+          <div class="glass panel"><div class="panel-title"><span>🗺</span><div><h3>Módulos actuales</h3><p>Administra módulos de la red.</p></div></div><div id="adminModuleList" class="list"></div></div>
+        </div>
+        <div class="glass panel admin-bmax-panel">
+          <div class="panel-title"><span>♛</span><div><h3>Control de cupos Bmax Pro</h3><p>Administra el límite de compras y consulta quién ya obtuvo el acceso.</p></div><button id="refreshBmaxBtn" class="glass-button revenue-refresh">Actualizar</button></div>
+          <div class="bmax-admin-stats">
+            <article><span>CUPOS TOTALES</span><strong id="adminBmaxTotal">10</strong></article>
+            <article><span>VENDIDOS</span><strong id="adminBmaxSold">0</strong></article>
+            <article><span>APARTADOS</span><strong id="adminBmaxReserved">0</strong></article>
+            <article><span>DISPONIBLES</span><strong id="adminBmaxAvailable">10</strong></article>
+          </div>
+          <div class="bmax-admin-controls">
+            <label>Cupos totales habilitados<input id="adminBmaxSlots" type="number" min="0" max="100000" step="1" value="10" /></label>
+            <label>Precio Bmax Pro (MXN)<input id="adminBmaxPrice" type="number" min="1" max="100000" step="0.01" value="99" /></label>
+            <button id="saveBmaxConfigBtn" class="primary glass-button">Guardar configuración</button>
+          </div>
+          <div class="subsection-title">Compras confirmadas</div>
+          <div id="adminBmaxPurchases" class="admin-bmax-purchases"><div class="muted">Cargando compradores...</div></div>
+        </div>
+        <div class="glass panel admin-revenue-panel">
+          <div class="panel-title"><span>💰</span><div><h3>Cuenta de ingresos de tragic</h3><p>Los cobros confirmados de usuarios se registran aquí.</p></div><button id="refreshRevenueBtn" class="glass-button revenue-refresh">Actualizar</button></div>
+          <div class="revenue-stats-grid">
+            <article class="revenue-stat revenue-account"><span>SALDO EN CUENTA ADMIN</span><strong id="adminRevenueAccount">$0.00</strong><small>Acumulado transferido a tragic</small></article>
+            <article class="revenue-stat"><span>RECAUDADO HOY</span><strong id="adminRevenueToday">$0.00</strong><small><b id="adminRevenueTodayCount">0</b> pagos confirmados hoy</small></article>
+            <article class="revenue-stat"><span>TOTAL RECAUDADO</span><strong id="adminRevenueTotal">$0.00</strong><small><b id="adminRevenueTotalCount">0</b> cobros confirmados</small></article>
+            <article class="revenue-stat revenue-pending"><span>EFECTIVO PENDIENTE</span><strong id="adminRevenuePending">$0.00</strong><small>Se suma al recaudo al confirmarlo</small></article>
+          </div>
+          <div class="revenue-explainer">Saldo EcoBlack se transfiere a la cuenta de ingresos cuando el servidor confirma el cobro. El efectivo queda pendiente hasta que el admin confirme que lo recibió. Tarjeta sigue en modo demo y no se cuenta como ingreso real.</div>
+          <div class="revenue-ledger-heading"><b>Últimos movimientos de ingreso</b><span>Máximo 50</span></div>
+          <div id="adminRevenueTransactions" class="admin-revenue-transactions"><div class="muted">Cargando movimientos...</div></div>
+        </div>
+        <div class="glass panel admin-users-panel"><div class="panel-title"><span>👥</span><div><h3>Usuarios y monedero</h3><p>Consulta cuentas, agrega saldo, configura descuentos y bloquea el acceso.</p></div></div><div id="adminUsersList" class="admin-users-list"></div></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="moduleModal" class="modal hidden">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-card glass">
+      <button class="modal-close" data-close>×</button>
+      <div class="modal-icon">⚡</div><div id="modalStatusTop" class="modal-status-top">DISPONIBLE</div>
+      <h3 id="modalName">Módulo</h3><p id="modalMeta" class="muted"></p><div id="modalConnectors" class="chips"></div>
+      <div class="modal-stats"><div><span>Potencia</span><b id="modalPower"></b></div><div><span>Estado</span><b id="modalStatus"></b></div></div>
+      <div id="modulePriceBox" class="module-price-box"><span>Paquete seleccionado</span><b id="modulePrice">$15.00</b><small id="modulePriceHint">Se descuenta del saldo al conectar.</small></div>
+      <div id="modalCountdown" class="modal-countdown hidden"></div>
+      <button id="modalUse" class="primary glass-button full">Conectarme ⚡</button>
+      <button id="modalDisconnect" class="outline-full glass-button hidden">Desconectar</button>
+    </div>
+  </div>
+
+  <div id="checkoutModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="checkoutTitle">
+    <div class="modal-backdrop" data-checkout-close></div>
+    <div class="modal-card checkout-card glass">
+      <button id="checkoutClose" class="modal-close" aria-label="Cerrar">×</button>
+      <div class="modal-icon">⚡</div>
+      <p class="eyebrow">ANTES DE CONECTAR</p>
+      <h3 id="checkoutTitle">Confirma tu sesión</h3>
+      <p id="checkoutModuleName" class="muted">Módulo EcoBlack</p>
+      <div class="checkout-section">
+        <div class="checkout-section-title">¿Quieres usar tu descuento?</div>
+        <label class="checkout-discount-option"><input id="checkoutUseDiscount" type="checkbox" checked /><span class="discount-check-ui">✓</span><span><b id="checkoutDiscountLabel">Aplicar descuento</b><small id="checkoutDiscountHint">Reduce el precio de esta sesión.</small></span></label>
+      </div>
+      <div class="checkout-section">
+        <div class="checkout-section-title">Método de pago</div>
+        <div class="payment-options">
+          <label class="payment-option"><input type="radio" name="checkoutPayment" value="wallet" checked /><span class="payment-icon">◈</span><span><b>Saldo EcoBlack</b><small id="checkoutWalletBalance">Se descuenta de tu saldo.</small></span></label>
+          <label class="payment-option"><input type="radio" name="checkoutPayment" value="card_demo" disabled /><span class="payment-icon">▤</span><span><b>Tarjeta</b><small>No disponible: falta conectar una pasarela bancaria real.</small></span></label>
+          <label class="payment-option"><input type="radio" name="checkoutPayment" value="cash" /><span class="payment-icon">＄</span><span><b>Efectivo</b><small>Quedará pendiente de pago en el módulo.</small></span></label>
+        </div>
+      </div>
+      <div class="checkout-summary">
+        <div><span>Precio base</span><b id="checkoutBase">$15.00</b></div>
+        <div><span>Descuento aplicado</span><b id="checkoutDiscount">$0.00</b></div>
+        <div><span>Duración real de sesión</span><b id="checkoutDuration">15 min</b></div>
+        <div><span>Potencia aplicada</span><b id="checkoutWatts">10 W</b></div>
+        <div><span id="checkoutTargetLabel">Tiempo estimado hasta 90%</span><b id="checkoutTargetTime">—</b></div>
+        <div><span>Batería estimada al finalizar</span><b id="checkoutFinalBattery">—</b></div>
+        <div class="checkout-total"><span>Total de la sesión</span><strong id="checkoutTotal">$15.00</strong></div>
+      </div>
+      <p id="checkoutPlanHint" class="checkout-payment-note">El paquete limita la duración y la potencia estimada.</p>
+      <p id="checkoutPaymentNote" class="checkout-payment-note">El saldo se descontará al conectar.</p>
+      <button id="checkoutConfirm" class="primary glass-button full">Confirmar y conectar ⚡</button>
+      <button id="checkoutCancel" class="outline-full glass-button full">Volver al módulo</button>
+    </div>
+  </div>
+
+  <div id="packageSelectionFx" class="package-selection-fx hidden" aria-live="polite" aria-atomic="true">
+    <div class="package-fx-orbit"></div>
+    <div class="package-fx-icon">⚡</div>
+    <div class="package-fx-copy"><small>PAQUETE SELECCIONADO</small><b id="packageFxName">Rápido</b><span id="packageFxDetail">30 min · $25.00</span></div>
+  </div>
+
+  <div id="bmaxPurchaseFx" class="bmax-activation-screen hidden" aria-live="assertive" aria-atomic="true">
+    <div class="bmax-activation-grid"></div><div class="bmax-activation-orbit orbit-a"></div><div class="bmax-activation-orbit orbit-b"></div>
+    <div class="bmax-activation-core"><span>⚡</span></div>
+    <div class="bmax-activation-copy"><small>ECOBLACK · EXCLUSIVE ACCESS</small><h2 id="bmaxActivationTitle">Activando Bmax Pro</h2><p id="bmaxActivationText">Verificando tu acceso premium...</p></div>
+    <div class="bmax-activation-progress"><div id="bmaxActivationProgress"></div></div>
+  </div>
+  <div id="connectionAnimation" class="connection-animation hidden" aria-live="assertive" aria-atomic="true">
+    <div class="connection-animation-backdrop"></div>
+    <div id="connectionAnimationCore" class="connection-animation-core">
+      <div class="bmax-spectral-aura" aria-hidden="true"><span></span><span></span><span></span><i></i></div>
+      <div class="connection-orbit orbit-one"></div><div class="connection-orbit orbit-two"></div><div class="connection-orbit orbit-three"></div>
+      <div id="connectionParticles" class="connection-particles" aria-hidden="true"></div>
+      <div id="connectionBatteryRing" class="connection-battery-ring" style="--connection-sweep:0%">
+        <div class="connection-battery-inner"><div class="connection-core-bolt">⚡</div><span id="connectionBatteryPercent">35%</span><small>BATERÍA</small></div>
+      </div>
+      <div class="connection-circuit-text"><span class="connection-label"><i></i> ECOBLACK · CONEXIÓN SEGURA</span><h2 id="connectionModuleName">Conectando módulo...</h2><p id="connectionPhaseText">Reservando estación de carga</p></div>
+      <div class="connection-progress"><div id="connectionProgressBar"></div></div>
+      <div class="connection-footnote">PREPARANDO TU ENERGÍA</div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
+  <script src="{{ url_for('static', filename='js/app.js', v='17.0') }}"></script>
+</body>
+</html>
