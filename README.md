@@ -1,88 +1,151 @@
-# EcoBlack V17 — reparación del mapa y temas del panel administrador
+# Demostracion QR con Flask y MongoDB Atlas
 
-EcoBlack conserva su estructura Flask. En Render, `app.py` selecciona MongoDB Atlas mediante `MONGODB_URI`; en local, si esa variable no existe, usa SQLite.
+Proyecto para mostrar como un codigo QR abre la ficha de un registro guardado en MongoDB Atlas. Esta version esta preparada para ejecutarse en Visual Studio Code, subirse a GitHub y desplegarse en Render.
 
-## Acceso por plan
+## Lo unico que debes cambiar
 
-- Cada cuenta nueva comienza **Sin plan**. La tarjeta de inicio muestra el plan actual y el estado de acceso.
-- Una cuenta normal debe comprar un plan antes de iniciar una carga. Puede consultar el mapa y los servicios, pero el servidor rechaza conexiones sin un plan activo.
-- Los planes **Básico, Rápido, Power y Personalizado** incluyen una sesión. Se pagan antes de conectar; al iniciar esa sesión, el plan se consume y vuelve a quedar la cuenta en **Sin plan**.
-- No se vuelve a descontar saldo al conectar una sesión que ya fue comprada.
-- Una cuenta no puede comprar otro plan estándar mientras conserve uno listo para usar.
-- El servidor verifica el plan vigente y el tipo de módulo en cada conexión. No basta con cambiar el selector del navegador.
+Cada equipo debe colocar su propia cadena de conexion en la variable `MONGO_URI`.
 
-## Bmax Pro: acceso VIP exclusivo
+```env
+MONGO_URI=mongodb+srv://USUARIO:CONTRASENA@CLUSTER.mongodb.net/?retryWrites=true&w=majority
+```
 
-- Bmax Pro solo se puede comprar desde su apartado limitado y solo puede utilizarse en módulos que tengan `module_type: "bmax"`.
-- Un plan normal no puede abrir un módulo Bmax. Bmax Pro tampoco puede abrir un módulo normal.
-- Hay 10 cupos iniciales. El precio inicial es **$99 MXN**, editable desde el panel de administrador.
-- Antes de confirmar, el usuario aparta un lugar durante **5 minutos**. El servidor libera los apartados vencidos y controla el inventario en Atlas para evitar sobreventas.
-- Al confirmar la compra, Bmax Pro queda permanente en la cuenta y el usuario puede realizar sesiones Bmax posteriores sin volver a comprar el plan.
-- Si no hay cupos, el servicio aparece como **Agotado**. El administrador puede aumentar o reducir el total, pero no por debajo de los cupos vendidos o apartados.
-- Bmax Pro tiene un límite máximo de paquete de **100 W**. La potencia efectiva es el menor valor entre el límite Bmax, la capacidad estimada del teléfono, la potencia registrada del módulo y el límite del conector.
-- La sesión estima el tiempo hasta 100% usando el porcentaje inicial y la capacidad del dispositivo. Cuando el navegador admite `navigator.getBattery()`, intenta leer la batería; si no, el usuario puede ajustarla manualmente.
+El proyecto ya utiliza:
 
-## Módulos y mapa
+- Base de datos: `catalogo_qr`
+- Coleccion: `productos`
+- Comando de Render: `gunicorn app:app`
+- Variable del puerto: `PORT`
 
-- Desde **Administración → Añadir módulo**, el admin puede crear módulos EcoBlack normales o módulos `Bmax · negro / morado`.
-- Cada módulo nuevo requiere nombre, ciudad, estado y coordenadas. Usa **Elegir punto en el mapa** para fijar la posición; si pulsas **Añadir al mapa** sin coordenadas, la aplicación abre automáticamente el modo de selección para que no parezca que el botón no funciona. Escribe su ciudad/estado reales para que se agrupe correctamente.
-- Los módulos Bmax tienen carcasa negra y detalles violetas; cuando están ocupados muestran su halo especial.
-- Los módulos permanecen anclados a las coordenadas guardadas. El marcador no se desplaza por animaciones de escala cuando se acerca o aleja el mapa.
-- El mapa cambia de nivel de detalle: **vista regional/estatal** con nombre del estado y número de módulos; **vista de ciudad** con nombre de ciudad y conteo; y, al acercarse, **marcadores individuales** en su ubicación guardada.
-- El admin puede usar el botón **Ciudad/estado** para completar metadatos de módulos antiguos que todavía no tengan esos campos y **Reubicar** para corregir su posición exacta.
-- Para los módulos predeterminados de Cancún, la aplicación completa automáticamente `Cancún, Quintana Roo` en registros antiguos que no tengan esos valores. No reemplaza nombres geográficos que ya estén configurados.
+## 1. Preparar MongoDB Atlas
 
-## Apariencia por plan y animación Bmax
+1. Entra a MongoDB Atlas.
+2. Abre tu proyecto y tu cluster.
+3. En **Database Access**, crea o revisa un usuario con contrasena.
+4. En **Network Access**, agrega las direcciones de salida de Render o el acceso autorizado por el docente.
+5. En el cluster, presiona **Connect**.
+6. Selecciona **Drivers** o **Connect your application**.
+7. Selecciona Python y copia la cadena completa.
+8. Sustituye `<password>` por la contrasena real del usuario.
 
-- Cada plan cambia el color de acento de la interfaz y de los marcadores normales.
-- Bmax Pro aplica una apariencia VIP morada a toda la interfaz.
-- Al conectar un módulo Bmax aparece una animación exclusiva con núcleo luminoso, aura espectral violeta, niebla, destellos y anillos de energía. Respeta la preferencia de movimiento reducido del dispositivo.
+No compartas la cadena de conexion y no la publiques en GitHub.
 
-## Persistencia en MongoDB Atlas
+## 2. Ejecutar en Visual Studio Code
 
-La aplicación crea las colecciones e índices que necesita al iniciar. Bmax usa:
+Abre la carpeta del proyecto y abre **Terminal > Nueva terminal**.
 
-- `bmax_config`: cupos totales, vendidos, apartados y precio.
-- `bmax_reservations`: apartados temporales y su vencimiento.
-- `bmax_purchases`: compras y acceso permanente del usuario.
+### macOS o Linux
 
-Los planes estándar guardan el plan activo y su estado en el documento del usuario (`active_plan`, `active_plan_status`, `active_plan_minutes` y campos de compra/consumo). Los módulos guardan `module_type`, `city` y `state`; el perfil admin puede guardar `admin_service_theme`. No hace falta crear estas colecciones o campos manualmente.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requirements.txt
+cp .env.example .env
+```
 
-## Variables de entorno en Render
+### Windows
 
-Conserva las variables actuales del servicio:
+```bash
+py -m venv .venv
+.venv\Scripts\activate
+python -m pip install -r requirements.txt
+copy .env.example .env
+```
 
-- `MONGODB_URI`: cadena de conexión de MongoDB Atlas.
-- `MONGODB_DB`: normalmente `ecoblack`.
-- `SECRET_KEY`: clave larga y aleatoria.
-- `ADMIN_USERNAME`: usuario administrador ya configurado.
-- `ADMIN_PASSWORD`: contraseña segura del administrador.
+Abre el archivo `.env` y reemplaza solamente el valor de `MONGO_URI`.
 
-No subas `.env`, contraseñas ni cadenas de MongoDB a GitHub. Esta versión no requiere cambiar `MONGODB_URI` ni `MONGODB_DB`.
+Despues ejecuta:
 
-## Pruebas recomendadas tras desplegar
+```bash
+python3 app.py
+```
 
-1. Crea una cuenta normal y confirma que Inicio muestre **Sin plan**.
-2. Intenta conectar cualquier módulo sin comprar: el servidor debe rechazarlo.
-3. Compra un plan estándar, conecta un módulo normal y confirma que la sesión se incluye sin un segundo cargo; al comenzar, la cuenta debe volver a **Sin plan**.
-4. Intenta conectar un módulo Bmax con un plan estándar: debe rechazarlo.
-5. Compra Bmax Pro con una cuenta distinta, usando el apartado de 5 minutos, y confirma que se vea el acceso VIP morado.
-6. Con Bmax Pro, conecta un módulo Bmax: debe funcionar. Intenta conectar un módulo normal: debe rechazarlo.
-7. Prueba el mapa a escala estatal, de ciudad y de calle. Revisa nombres y conteos; abre un pin y confirma que la ubicación coincide con las coordenadas guardadas.
-8. Desde el admin, completa ciudad/estado de módulos antiguos, crea un módulo nuevo y confirma que persista en Atlas.
-9. Prueba dos cuentas intentando apartar el último cupo Bmax; solo una debe obtenerlo.
+En Windows tambien puedes usar:
 
-## Nota técnica sobre carga real
+```bash
+python app.py
+```
 
-Esta versión implementa planes, reservas, compras, autorizaciones, mapa y estimaciones dentro de la aplicación web. **No controla eléctricamente un cargador ni puede garantizar una carga física de 100 W o una batería al 100%** sin integrar el hardware, los protocolos de carga y telemetría real. La potencia y los minutos mostrados son estimaciones de software.
+Abre en el navegador:
 
+```text
+http://127.0.0.1:5000
+```
 
-## V17 · Reparación de mapa y panel admin
+La primera vez, la aplicacion crea automaticamente cuatro documentos en la coleccion `productos`.
 
-- El formulario ya no acepta coordenadas vacías ni el punto accidental `0, 0`; exige una ubicación real antes de guardar.
-- El admin puede reubicar módulos existentes desde el mapa, útil para corregir módulos guardados anteriormente en una esquina o con coordenadas incompletas.
-- Los módulos sin coordenadas válidas ya no generan pines fantasma ni agrupaciones falsas; aparecen marcados como `Ubicación pendiente` en el panel admin.
-- Al guardar un módulo, la app cambia primero a la vista del mapa, espera que el mapa esté visible/listo, lo redimensiona y centra el nuevo pin en sus coordenadas reales.
-- El panel de administrador inicia con tema vino. Se agregó un selector de vista para los temas Básico (verde), Rápido (azul), Power (naranja), Personalizado (turquesa) y Bmax Pro (violeta). La preferencia se guarda en el perfil del admin en Atlas/SQLite. El selector solo cambia el aspecto del panel admin, no cambia planes ni permisos de clientes.
-- Las validaciones se aplican tanto al backend MongoDB Atlas como al backend local SQLite.
-- Se corrigió el posicionamiento de MapLibre: el pin ahora usa un contenedor geográfico independiente del botón visual, de modo que las reglas CSS de animación no anulan la transformación de coordenadas del mapa.
+## 3. Demostracion
+
+1. Abre una ficha desde el catalogo.
+2. Regresa y cambia la disponibilidad.
+3. Abre nuevamente la misma ficha.
+4. Comprueba que el QR conserva la direccion, pero la ficha muestra el dato actualizado.
+5. Agrega un nuevo registro.
+6. Revisa en Atlas que el documento aparezca en `catalogo_qr > productos`.
+7. Prueba una direccion inexistente para observar el mensaje de control.
+
+## 4. Subir a GitHub
+
+Sube todos los archivos excepto `.env`. El archivo `.gitignore` ya evita que las credenciales se agreguen por accidente.
+
+## 5. Desplegar en Render
+
+En Render crea un **Web Service** desde el repositorio de GitHub.
+
+| Configuracion | Valor |
+|---|---|
+| Language | Python 3 |
+| Build Command | `pip install -r requirements.txt` |
+| Start Command | `gunicorn app:app` |
+
+En **Environment** agrega:
+
+| Variable | Valor |
+|---|---|
+| `MONGO_URI` | Cadena completa de MongoDB Atlas |
+| `MONGO_DB` | `catalogo_qr` |
+| `SECRET_KEY` | Una frase larga y privada |
+
+Guarda los cambios y realiza el despliegue.
+
+## 6. QR en el celular
+
+En la computadora, `localhost` solamente funciona en esa misma computadora. Para escanear el QR con un celular, utiliza la aplicacion publicada en Render.
+
+Si el QR publicado no contiene la direccion correcta, agrega en Render:
+
+```env
+APP_BASE_URL=https://nombre-de-tu-aplicacion.onrender.com
+```
+
+## Como adaptarlo a otro proyecto
+
+Los alumnos pueden cambiar los productos por:
+
+- Libros.
+- Equipos.
+- Eventos.
+- Habitaciones.
+- Servicios.
+- Pedidos.
+- Reservaciones.
+
+La idea se conserva: cada documento tiene un `_id`, ese identificador forma una direccion y el QR abre la ficha correspondiente.
+
+## Errores frecuentes
+
+### Aparece la pantalla "Agrega la conexion"
+
+Falta crear el archivo `.env` o no se escribio `MONGO_URI`.
+
+### Atlas no permite la conexion
+
+Revisa usuario, contrasena y Network Access. Si la contrasena contiene caracteres especiales, utiliza una contrasena alfanumerica para la practica o codifica esos caracteres correctamente.
+
+### Render inicia, pero la verificacion falla
+
+Comprueba que `MONGO_URI` exista en **Environment** y que Atlas permita las direcciones de salida de Render.
+
+### El QR no aparece
+
+La imagen QR se obtiene de `api.qrserver.com`; se necesita conexion a Internet.

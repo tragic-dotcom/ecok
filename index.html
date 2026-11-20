@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Catálogo - Laboratorio QR{% endblock %}
+
+{% block contenido %}
+<section class="hero">
+    <div>
+        <span class="etiqueta">DEMOSTRACIÓN INTERACTIVA</span>
+        <h1>Una ficha actualizada detrás de cada QR</h1>
+        <p>
+            El QR guarda una dirección. La dirección abre una ficha y la ficha
+            consulta el dato actual guardado en MongoDB Atlas.
+        </p>
+    </div>
+    <div class="pasos">
+        <strong>Prueba en 3 pasos</strong>
+        <span>1. Abre una ficha</span>
+        <span>2. Cambia la disponibilidad</span>
+        <span>3. Abre la misma ficha otra vez</span>
+    </div>
+</section>
+
+<div class="aviso-base">
+    Conexión activa: base <strong>{{ nombre_bd }}</strong>, colección <strong>productos</strong>.
+</div>
+
+<section class="titulo-seccion">
+    <div>
+        <h2>Registros de demostracion</h2>
+        <p>Cada tarjeta tiene su propia direccion y su propio QR.</p>
+    </div>
+    <a class="boton boton-primario" href="{{ url_for('nuevo_producto') }}">+ Agregar registro</a>
+</section>
+
+<section class="rejilla">
+    {% for producto in productos %}
+    <article class="tarjeta" {% if request.args.get('actualizado') == producto.id|string %}id="actualizado"{% endif %}>
+        <div class="producto-cabecera">
+            <div class="icono-producto">{{ producto.icono }}</div>
+            <div>
+                <span class="categoria">{{ producto.categoria }}</span>
+                <h3>{{ producto.nombre }}</h3>
+            <span class="estado estado-{{ producto.estado|lower|replace(' ', '-') }}">{{ 'Últimas unidades' if producto.estado == 'Ultimas unidades' else producto.estado }}</span>
+            </div>
+        </div>
+
+        <p class="descripcion">{{ producto.descripcion }}</p>
+        <p class="ubicacion"><strong>Ubicación:</strong> {{ producto.ubicacion }}</p>
+
+        <div class="zona-qr">
+            <img src="{{ producto.enlace_qr }}" alt="QR de {{ producto.nombre }}">
+            <div>
+                <strong>Ficha numero {{ producto.id }}</strong>
+                <small>Escanea o abre la ficha desde esta computadora.</small>
+                <a class="boton boton-secundario" href="{{ producto.enlace_publico }}" target="_blank">Abrir ficha</a>
+                <button class="enlace-boton copiar" data-enlace="{{ producto.enlace_publico }}">Copiar dirección</button>
+            </div>
+        </div>
+
+        <form class="cambiar-estado" method="post" action="{{ url_for('cambiar_estado', producto_id=producto.id) }}">
+            <label for="estado-{{ producto.id }}">Cambiar disponibilidad</label>
+            <div>
+                <select id="estado-{{ producto.id }}" name="estado">
+                    {% for estado in estados %}
+                        <option value="{{ estado }}" {% if estado == producto.estado %}selected{% endif %}>{{ 'Últimas unidades' if estado == 'Ultimas unidades' else estado }}</option>
+                    {% endfor %}
+                </select>
+                <button class="boton boton-oscuro" type="submit">Guardar</button>
+            </div>
+        </form>
+    </article>
+    {% endfor %}
+</section>
+
+<section class="prueba-error">
+    <div>
+        <span class="etiqueta">PRUEBA DE CONTROL</span>
+        <h2>¿Que pasa si el registro no existe?</h2>
+        <p>La aplicación no se rompe: presenta una explicación clara para el usuario.</p>
+    </div>
+    <a class="boton boton-contorno" href="{{ url_for('ficha_publica', producto_id=9999) }}" target="_blank">Probar ficha inexistente</a>
+</section>
+{% endblock %}
